@@ -1,0 +1,156 @@
+---
+- name: Gathering OS specific variables
+  include_vars: '{{ item }}'
+  with_first_found:
+    - files:
+      - "{{ ansible_distribution }}.{{ ansible_distribution_release }}.yml"
+      - "{{ ansible_distribution }}.yml"
+      - "{{ ansible_os_family }}.yml"
+      skip: 'true'
+  tags: [ 'configuration', 'package' ,  'service' , 'nginx' ]
+
+- name: Define nginx_repo_install
+  set_fact:
+    nginx_repo_install: "{{ __nginx_repo_install }}"
+  when: nginx_repo_install is not defined
+  tags: [ 'configuration', 'nginx' ]
+
+- name: Define nginx_user
+  set_fact:
+    nginx_user: "{{ __nginx_user }}"
+  when: nginx_user is not defined
+  tags: [ 'package', 'nginx' ]
+
+- include: install.yml
+  tags: [ 'package', 'nginx' ]
+
+- include: create_folders.yml
+  tags: [ 'configuration','nginx' ]
+
+- name: logfile rotation for FreeBSD
+  template: src=newsyslog.conf.j2 dest=/usr/local/etc/newsyslog.conf.d/nginx.conf
+  when:
+    ansible_os_family == 'FreeBSD'
+  tags: [ 'configuration', 'nginx' ]
+
+- include: vhosts_compare_name.yml 
+  when: nginx_vhosts != []
+  tags: [ 'configuration','nginx' ]
+
+- include: vhosts_compare_content.yml
+  when: 
+    - vhostChanged  == false
+    - nginx_vhosts != []
+  tags: [ 'configuration','nginx' ]
+
+- name: generate temporary main configuration file
+  template:
+    src: nginx.conf.j2
+    dest: "{{ nginx_conf_path }}/tmp_nginx.conf" 
+  vars:
+    - mode: "notest"
+  when: vhostChanged  == false
+  tags: [ 'configuration','nginx' ]
+
+- name: check for potential change in main configuration file
+  shell : 'diff "{{ nginx_conf_path }}/tmp_nginx.conf" "{{ nginx_conf_path }}/nginx.conf" > /dev/null ; echo $?'
+  register: diffConf
+  when: vhostChanged  == false
+  tags: [ 'configuration','nginx' ]
+
+- name: remove temporary configuration file
+  file: path='{{ nginx_conf_path }}/tmp_nginx.conf' state=absent
+  tags: [ 'configuration','nginx' ]
+
+- name: check if main configuration file has changed 
+  set_fact:
+    needTestConf: true
+  when:
+    vhostChanged == true or diffConf.stdout == '1'
+  tags: [ 'configuration','nginx' ]
+
+- name: check if main configuration file has not changed
+  set_fact:
+    needTestConf: false
+  when:
+    vhostChanged == false and diffConf.stdout == "0"
+  tags: [ 'configuration','nginx' ]
+
+- name: generate main configuration file - test mode
+  template: 
+    src: nginx.conf.j2
+    dest: "{{ nginx_conf_path }}/test_nginx.conf"
+  register: genMainConf
+  vars:
+    - mode: 'test'
+  when: 
+    needTestConf == true
+  tags: [ 'configuration','nginx' ]
+
+- name: nginx validation of the test configuration
+  shell: '{{ nginx_binary }}  -t -c {{ nginx_conf_path }}/test_nginx.conf'
+  register: testConfResult
+  when:
+    - needTestConf == true
+  tags: [ 'configuration','nginx' ]
+  ignore_errors: yes 
+
+- name: checking the result of the validation 
+  set_fact:
+     nginx_conf_need_update: 'True' 
+  when:
+   - needTestConf == true
+   - "'syntax is ok' in testConfResult.stderr"
+  tags: [ 'configuration','nginx' ]
+
+- name: remove test configuration file
+  file: path='{{ nginx_conf_path }}/test_nginx.conf' state=absent
+  tags: [ 'configuration','nginx' ]
+
+- name: delete vhosts files
+  shell: 'rm -f {{ nginx_conf_path }}/{{ nginx_vhosts_path }}/*'
+  when:
+    - nginx_conf_need_update == true
+  tags: [ 'configuration','nginx' ]
+
+- name: create vhosts files
+  template: src=vhosts.conf.j2 dest={{ nginx_conf_path }}/{{ nginx_vhosts_path }}/vhost_{{ item }}.conf
+  with_items: "{{ nginx_vhosts.keys() }}"
+  when:
+    - nginx_conf_need_update == true 
+    - nginx_vhosts != []
+  tags: [ 'configuration','nginx' ]
+
+- name: cleanup tmp vhosts folder
+  file: path='{{ nginx_conf_path }}/{{ nginx_vhosts_path_test_mode }}' state=absent
+  tags: [ 'configuration','nginx' ]
+
+- name: Abort the playbook due to nginx validation error
+  fail: msg="{{ testConfResult.stderr }}"
+  when: 
+   - needTestConf == true
+   - "'failed' in testConfResult.stderr"
+  tags: [ 'configuration','nginx' ]
+
+- name: generate main configuration file
+  vars:
+   - mode: "notest"
+  template:
+    src: nginx.conf.j2
+    dest: "{{ nginx_conf_path }}/nginx.conf"
+  when:
+     nginx_conf_need_update == true
+  tags: [ 'configuration','nginx' ]
+
+- name: nginx service management 
+  service: name='nginx' state={{ nginx_service_state }} enabled={{ nginx_service_enabled }}
+  register: resultServiceMgmt
+  tags: [ 'configuration','service','nginx' ]
+
+- name: nginx service reload
+  service: name=nginx state='reloaded' enabled={{ nginx_service_enabled }}
+  when:
+      - nginx_conf_need_update == true
+      - nginx_service_state == 'started'
+      - resultServiceMgmt.changed  == false
+  tags: [ 'configuration','nginx' ]

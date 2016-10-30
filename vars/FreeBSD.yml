@@ -1,0 +1,4 @@
+---
+nginx_conf_path: '/usr/local/etc/nginx'
+nginx_binary: '/usr/local/sbin/nginx'
+nginx_root_group: 'wheel'

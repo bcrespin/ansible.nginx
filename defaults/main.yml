@@ -1,0 +1,55 @@
+---
+# defaults file for boxeman.nginx
+nginx_package_name: 'nginx'
+nginx_mime_file_path: 'mime.types'
+nginx_worker_processes: "{{ ansible_processor_vcpus | default(ansible_processor_count) }}"
+nginx_worker_connections: "1024"
+nginx_multi_accept: "off"
+nginx_sendfile: "on"
+nginx_tcp_nopush: "on"
+nginx_tcp_nodelay: "on"
+nginx_keepalive_timeout: "60"
+nginx_keepalive_requests: "100"
+nginx_client_max_body_size: "64m"
+nginx_server_names_hash_bucket_size: "64"
+nginx_proxy_cache_path: []
+log_format:
+ main: ' ''$remote_addr - $remote_user [$time_local] "$request" ''
+                      ''$status $body_bytes_sent "$http_referer" '' 
+                      ''"$http_user_agent" "$http_x_forwarded_for"'' '
+nginx_error_log: "/var/log/nginx/error.log"
+nginx_error_level: 'warn'
+nginx_access_log: "/var/log/nginx/access.log"
+nginx_access_log_format: 'main'
+nginx_extra_conf_options: ""
+nginx_extra_http_options: ""
+
+#must always be a relative path 
+nginx_vhosts_path: "sites-enabled"
+
+nginx_vhosts: []
+nginx_upstreams: []
+
+nginx_service_enabled: true
+nginx_service_state: 'started'
+
+#most  OS default, can be overrided by add/edit/update theses files in vars/
+#"{{ ansible_distribution }}.{{ ansible_distribution_release }}.yml"
+#"{{ ansible_distribution }}.yml"
+#"{{ ansible_os_family }}.yml"
+nginx_conf_path: '/etc/nginx'
+nginx_binary: '/usr/sbin/nginx'
+nginx_pid: '/var/run/nginx.pid'
+__nginx_repo_install: false
+__nginx_user: 'www'
+nginx_root_group: 'root'
+
+nginx_pkg_name: 'nginx'
+nginx_pkg_state: 'present'
+
+# you should not override theses !
+nginx_vhosts_path_test_mode: "test_sites-enabled"
+needTestConf: false
+nginx_conf_need_update: false
+vhostChanged: false
+vhostCounthChanged: 0

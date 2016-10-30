@@ -1,0 +1,33 @@
+#{{ ansible_managed }}
+
+server {
+    listen {{ nginx_vhosts[item].listen | default('80 default_server') }};
+
+{% if nginx_vhosts[item].server_name is defined %}
+    server_name {{ nginx_vhosts[item].server_name }};
+{% endif %}
+
+{% if nginx_vhosts[item].root is defined %}
+    root {{ nginx_vhosts[item].root }};
+{% endif %}
+
+    index {{ nginx_vhosts[item].index | default('index.html index.htm') }};
+
+{% if nginx_vhosts[item].error_page is defined %}
+    error_page {{ nginx_vhosts[item].error_page }};
+{% endif %}
+{% if nginx_vhosts[item].access_log is defined %}
+    access_log {{ nginx_vhosts[item].access_log }};
+{% endif %}
+{% if nginx_vhosts[item].error_log is defined %}
+    error_log {{ nginx_vhosts[item].error_log }} error;
+{% endif %}
+
+{% if nginx_vhosts[item].return is defined %}
+    return {{ nginx_vhosts[item].return }};
+{% endif %}
+
+{% if nginx_vhosts[item].extra_parameters is defined %}
+    {{ nginx_vhosts[item].extra_parameters|indent(4) }}
+{% endif %}
+}

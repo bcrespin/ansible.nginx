@@ -1,0 +1,10 @@
+---
+#- name: Update pkg cache.
+#  shell: pkg update -f
+#  tags: [ 'package', 'nginx' ]
+
+- name: Ensure nginx is installed.
+  pkgng:
+    name: "{{ nginx_package_name }}"
+    state: present
+  tags: [ 'package', 'nginx' ]

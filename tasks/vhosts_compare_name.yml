@@ -1,0 +1,26 @@
+---
+- name: list vhosts to apply
+  set_fact: 
+    vhoststoapply: "{{ nginx_vhosts.keys() }}"
+  when: nginx_vhosts != []
+  tags: [ 'configuration','nginx' ]
+
+- name: list vhosts installed
+  shell: '  cd {{ nginx_conf_path  }}/{{ nginx_vhosts_path }} && ( ls -1 vhost_*.conf | sed ''s/vhost_\(.*\)\.conf/\1/g'' ) '
+  register:  currentvhosts
+  when: nginx_vhosts != []
+  tags: [ 'configuration','nginx' ]
+
+- name: list vhosts to delete
+  list_in_not_in: list1={{ currentvhosts.stdout_lines }} list2={{ vhoststoapply }} is_in=False
+  register: vhoststodel
+  when: nginx_vhosts != []
+  tags: [ 'configuration','nginx' ]
+
+- name: check if vhosts name imply update
+  set_fact: 
+    vhostChanged: true
+  when: 
+    - vhoststodel['items'] != []
+    - nginx_vhosts != []
+  tags: [ 'configuration','nginx' ]

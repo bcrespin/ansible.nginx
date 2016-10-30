@@ -1,0 +1,3 @@
+---
+nginx_user: 'nginx'
+__nginx_repo_install: true

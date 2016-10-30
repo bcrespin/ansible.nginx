@@ -1,0 +1,70 @@
+#{{ ansible_managed }}
+
+{% if nginx_user is defined %}
+user  {{ nginx_user }};
+{% endif %}
+
+error_log  {{ nginx_error_log }} {{ nginx_error_level }};
+
+{% if nginx_pidfile is defined %}}
+pid        {{ nginx_pidfile }};
+{% endif %}
+
+worker_processes  {{ nginx_worker_processes }};
+
+events {
+    worker_connections  {{ nginx_worker_connections }};
+    multi_accept {{ nginx_multi_accept }};
+}
+
+{% if nginx_extra_conf_options !="" %}
+{{ nginx_extra_conf_options }}
+{% endif %}
+
+http {
+    include       {{ nginx_mime_file_path }};
+    default_type  application/octet-stream;
+
+    server_names_hash_bucket_size {{ nginx_server_names_hash_bucket_size }};
+
+    client_max_body_size {{ nginx_client_max_body_size }};
+
+{% for (k,v) in log_format.iteritems() %}
+    log_format  {{ k }} {{ v }};
+{% endfor %}
+    access_log  {{ nginx_access_log }} {{ nginx_access_log_format }} {% if nginx_access_log_options is defined %} {{ nginx_access_log_options }} {% endif %}; 
+
+    sendfile {{ nginx_sendfile }};
+    tcp_nopush {{ nginx_tcp_nopush }};
+    tcp_nodelay {{ nginx_tcp_nodelay }};
+    keepalive_timeout {{ nginx_keepalive_timeout }};
+    keepalive_requests {{ nginx_keepalive_requests }};
+
+    #gzip  on;
+
+{% if nginx_proxy_cache_path != [] %}
+{% for key in nginx_proxy_cache_path.iterkeys() %}
+    proxy_cache_path {{ key }} {{ nginx_proxy_cache_path[key] }};
+{% endfor %}
+{% endif %}
+
+{% if nginx_extra_http_options %}
+    {{ nginx_extra_http_options }}
+{% endif %}
+
+{% for upstream in nginx_upstreams %}
+    upstream {{ upstream.name }} {
+{% if upstream.strategy is defined %}
+        {{ upstream.strategy }};
+{% endif %}
+{% for server in upstream.servers %}
+    server {{ server }};
+{% endfor %}
+{% if upstream.keepalive is defined %}
+    keepalive {{ upstream.keepalive }};
+{% endif %}
+    }
+{% endfor %}
+
+   include {% if mode == 'test' %}{{ nginx_vhosts_path_test_mode }}{%else %}{{ nginx_vhosts_path }}{% endif %}/vhost_*.conf;
+}

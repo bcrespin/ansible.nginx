@@ -1,0 +1,52 @@
+---
+- name: FreeBSD install
+  include: install-FreeBSD.yml
+  when:
+    ansible_os_family == 'FreeBSD'
+  tags: [ 'package', 'nginx' ]
+
+- name: Install nginx yum repo
+  yum_repository:
+    name: nginx
+    description: official nginx repo
+    baseurl: "http://nginx.org/packages/{{ ansible_distribution |lower }}/{{ ansible_distribution_major_version }}/$basearch/"
+    gpgkey: "{{ nginx_signing_key_url |default('https://nginx.org/keys/nginx_signing.key') }}" 
+    gpgcheck: yes
+  when:
+    - ansible_pkg_mgr == 'yum'
+    - nginx_repo_install == true
+  tags: [ 'package' , 'nginx' ]
+
+- name: Install nginx apt repo (not from PPA)
+  apt_repository:
+    repo=' deb  "{{ nginx_apt_repo_base_url|default('http://nginx.org/packages') }}/{{ ansible_distribution |lower }}/" {{ ansible_distribution_release }} nginx'
+    state=present
+    update_cache=yes
+  when:
+    - nginx_repo_install == true
+    - ansible_pkg_mgr == 'apt'
+    - not  nginx_apt_repo_base_url|search("ppa:")
+  tags: [ 'package' , 'nginx' ]
+
+- name: Install nginx apt repo (from PPA)
+  apt_repository:
+    repo="{{ nginx_apt_repo_base_url }}"
+    state=present
+    update_cache=yes
+  when:
+    - nginx_repo_install == true
+    - ansible_pkg_mgr == 'apt'
+    - nginx_apt_repo_base_url|search("ppa:")
+  tags: [ 'package' , 'nginx' ]
+
+
+- name: Install required packages with yum
+  yum: name={{ nginx_pkg_name }} state={{ nginx_pkg_state }}
+  when: ansible_pkg_mgr == 'yum'
+  tags: [ 'package' , 'nginx' ]
+
+- name: Install required packages with apt
+  apt: name={{ nginx_pkg_name }} state={{ nginx_pkg_state }} update_cache=yes cache_valid_time=3600
+  when: ansible_pkg_mgr == 'apt'
+  tags: [ 'package' , 'nginx' ]
+

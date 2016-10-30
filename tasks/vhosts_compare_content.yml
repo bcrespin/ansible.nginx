@@ -1,0 +1,23 @@
+---
+- name: create vhosts file in test folder
+  template: src=vhosts.conf.j2 dest={{ nginx_conf_path }}/{{ nginx_vhosts_path_test_mode }}/vhost_{{ item }}.conf
+  with_items: "{{ nginx_vhosts.keys() }}"
+  tags: [ 'configuration','nginx' ]
+
+- name: diff between  vhosts in conf and theses in test folder
+  shell: 'diff -q "{{ nginx_conf_path }}/{{ nginx_vhosts_path }}/vhost_{{ item }}.conf" "{{ nginx_conf_path }}/{{ nginx_vhosts_path_test_mode }}/vhost_{{ item }}.conf" > /dev/null ; echo $?'
+  with_items: "{{ nginx_vhosts.keys() }}"
+  register: diffConf
+  tags: [ 'configuration','nginx' ]
+
+- name: check numbers vhosts changed
+  set_fact:
+    vhostCounthChanged: "{{ vhostCounthChanged|int + item.stdout|int }}"
+  with_items: "{{ diffConf.results }}"
+  tags: [ 'configuration','nginx' ]
+
+- name: vhosts content has changed
+  set_fact:
+    vhostChanged: true
+  when: vhostCounthChanged|int > 0
+  tags: [ 'configuration','nginx' ]

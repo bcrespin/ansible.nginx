@@ -1,0 +1,8 @@
+#{{ ansible_managed }}
+{% if nginx_newsyslog_conf is not defined %}
+/var/log/nginx/*.log                644  7     *	@T00     JCG {{  nginx_pid }}
+{%else %}
+{% for (k,v) in nginx_newsyslog_conf.iteritems() %}
+{{ k }}	{{ v }}
+{% endfor %}
+{% endif %}
