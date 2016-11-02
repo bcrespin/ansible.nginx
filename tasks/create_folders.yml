@@ -1,4 +1,4 @@
-#
+---
 - name: create vhosts folder
   file: path="{{ nginx_conf_path }}/{{ nginx_vhosts_path }}" state=directory owner="root"  group="{{ nginx_root_group }}" mode=0644
   tags: [ 'configuration','nginx' ]
@@ -7,10 +7,20 @@
   file: path="{{ nginx_conf_path }}/{{ nginx_vhosts_path_test_mode }}" state=directory owner="root" group="{{ nginx_root_group }}" mode=0644
   tags: [ 'configuration','nginx' ]
 
+- name: create proxy cache  folders list
+  set_fact: nginx_proxy_cache_path_keys="{{ nginx_proxy_cache_path.keys() }}"
+  when: nginx_proxy_cache_path|length > 0
+  tags: [ 'configuration','nginx' ]
+
+- name: create proxy cache  folders list empty
+  set_fact: nginx_proxy_cache_path_keys= []
+  when: nginx_proxy_cache_path == []
+  tags: [ 'configuration','nginx' ]
+
 - name: create proxy cache folders
+  when: nginx_proxy_cache_path|length > 0
   file: path="{{ item }}" state=directory owner="{{ nginx_user }}" group="{{ nginx_root_group }}" mode=0755
-  with_items: "{{ nginx_proxy_cache_path.keys() }}" 
-  when:  nginx_proxy_cache_path != []
+  with_items: "{{ nginx_proxy_cache_path_keys }}" 
   tags: [ 'configuration','nginx' ]
 
 - name: create newsyslogconf folder
